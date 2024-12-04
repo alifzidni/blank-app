@@ -10,7 +10,7 @@ st.set_page_config(page_title="Illegal Parking Monitoring", page_icon="🚬", la
 
 # Title and description
 st.title("Illegal Parking Monitoring")
-st.subheader("📘 Capstone Project Group 24")
+st.subheader("📘 Capstone Project Group 26")
 st.write(
     """
     A real-time dashboard connecting to a Google Spreadsheet to monitor illegal parking activity. 
