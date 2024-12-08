@@ -34,7 +34,7 @@ def get_current_time():
     return (datetime.utcnow() + gmt_plus_7).strftime("%H:%M:%S")
 
 # Auto-refresh every 5 seconds
-st_autorefresh(interval=5000, key="auto_refresh")
+st_autorefresh(interval=1000, key="auto_refresh")
 
 # Display current time
 current_time = get_current_time()
