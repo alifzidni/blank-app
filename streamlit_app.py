@@ -42,7 +42,7 @@ clock_placeholder.subheader(f"Current Time: {current_time}")
 def load_data():
     try:
         # URL Google Sheets
-        url = "https://docs.google.com/spreadsheets/d/1bcept49fnUiGc3s5ou_68MLuwhhzhNUNvNMANesQ1Zk/edit?usp=sharing"
+        url = "https://docs.google.com/spreadsheets/d/1LkUmM7tPEsKaWI31ycoGedzwSXFdq4f16Z4mqGBYwRU/edit?usp=sharing"
         conn = st.connection("gsheets", type=GSheetsConnection)
         df = conn.read(spreadsheet=url, header=0)  # Ensure header is taken from the first row
 
