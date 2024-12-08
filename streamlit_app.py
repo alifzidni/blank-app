@@ -1,7 +1,7 @@
 import streamlit as st
 import pandas as pd
 from datetime import datetime, timedelta
-from streamlit_autorefresh import st_autorefresh
+import time
 from streamlit_gsheets import GSheetsConnection
 import matplotlib.pyplot as plt
 import seaborn as sns
@@ -22,10 +22,7 @@ st.write(
     """
 )
 
-# Auto-refresh the page every 5 seconds
-st_autorefresh(interval=1000, key="auto_refresh")
-
-# Real-time clock with a placeholder
+# Real-time clock
 st.subheader("⏰ Current Time (UTC+7)")
 clock_placeholder = st.empty()
 
@@ -36,8 +33,12 @@ gmt_plus_7 = timedelta(hours=7)
 def get_current_time():
     return (datetime.utcnow() + gmt_plus_7).strftime("%H:%M:%S")
 
-# Continuously update the clock without blocking execution
-clock_placeholder.subheader(get_current_time())
+# Function to convert Google Drive link to direct link
+def convert_gdrive_link(url):
+    if "drive.google.com" in url and "/file/d/" in url:
+        file_id = url.split("/d/")[1].split("/")[0]
+        return f"https://drive.google.com/uc?id={file_id}"
+    return url
 
 # Cache the data loading function with a TTL of 5 seconds
 @st.cache_data(ttl=5)
@@ -61,13 +62,18 @@ def load_data():
         st.error(f"Dataframe has {len(df.columns)} columns, but 3 or 4 columns are expected.")
         st.stop()
 
+    # Convert Google Drive links to direct links
+    df["Image_URL"] = df["Image_URL"].apply(lambda x: convert_gdrive_link(x) if pd.notna(x) else x)
+
+    # Remove empty columns
+    df = df.dropna(axis=1, how="all")
     return df
 
 # Load and process the data
 df = load_data()
 
-# Process the last row if data exists
 if not df.empty:
+    # Process the last row
     last_row = df.iloc[-1]
     last_time = last_row["Time"]
     last_detection = last_row["Detection"]
@@ -92,9 +98,6 @@ if not df.empty:
             st.image(image, caption="Latest Detection Image", use_container_width=True)
         except Exception as e:
             st.error(f"Error loading image: {e}")
-
-else:
-    st.warning("No data available. Please check the Google Spreadsheet link or data format.")
 
     # Metrics
     total_images = len(df)
@@ -125,64 +128,18 @@ else:
         ax1.axis('equal')
         st.pyplot(fig1)
 
-    # Cumulative Detection Rate Graph
-    st.subheader("📈 Cumulative Detection Rate Over Time")
-    fig2, ax2 = plt.subplots(figsize=(10, 5))
-    time_series = pd.to_datetime(df["Time"], format="%H:%M:%S", errors="coerce")
-    detection_cumsum = df["Detection"].cumsum() / (df.index + 1) * 100
-    ax2.plot(time_series, detection_cumsum, label="Cumulative Detection Rate", color="blue")
-    ax2.set_title("Cumulative Detection Rate Over Time")
-    ax2.set_xlabel("Time")
-    ax2.set_ylabel("Detection Rate (%)")
-    ax2.legend()
-    ax2.grid(True)
-    st.pyplot(fig2)
-
-    # Heatmap Section
-    st.subheader("🔥 Heatmap: Waktu vs Jumlah Pelanggaran")
-
-    # Extract hour from Time column
-    try:
-        df["Hour"] = pd.to_datetime(df["Time"], format="%H:%M:%S").dt.hour
-    except ValueError as e:
-        st.error(f"Error parsing Time column: {e}")
-        st.stop()
-
-    # Group by hour and sum detections
-    hourly_counts = df.groupby("Hour")["Detection"].sum().reset_index()
-
-    # Prepare data for heatmap
-    heatmap_data = pd.DataFrame({
-        "Hour": range(24),
-        "Detections": [
-            hourly_counts.loc[hourly_counts["Hour"] == h, "Detection"].sum()
-            if h in hourly_counts["Hour"].values else 0 for h in range(24)
-        ]
-    }).set_index("Hour")
-
-    # Plot heatmap using Seaborn
-    fig3, ax3 = plt.subplots(figsize=(10, 5))
-    sns.heatmap(
-        heatmap_data.T,
-        annot=True,
-        fmt=".0f",
-        cmap="YlGnBu",
-        cbar_kws={"label": "Detections"},
-        ax=ax3
-    )
-    ax3.set_title("Heatmap: Waktu vs Jumlah Pelanggaran")
-    ax3.set_xlabel("Jam (24-Hour Format)")
-    ax3.set_ylabel("Detections")
-    st.pyplot(fig3)
-
     # Display Historical Data Table
     st.subheader("📋 Historical Data Table")
-    st.dataframe(df[["Date", "Time", "Detection"]])
+    st.dataframe(df[["Date", "Time", "Detection", "Image_URL"]])
 
-# Clock Update
+# Main loop for clock update and timed rerun
+start_time = time.time()
+
+# Update real-time clock
 while True:
     current_time = get_current_time()
     clock_placeholder.subheader(f"{current_time}")
     time.sleep(1)
-    st.cache_data.clear()
-    st.rerun()
+    if time.time() - start_time >= 5:
+        st.cache_data.clear()
+        st.rerun()
