@@ -5,9 +5,6 @@ from streamlit_gsheets import GSheetsConnection
 import matplotlib.pyplot as plt
 import seaborn as sns
 from streamlit_autorefresh import st_autorefresh
-from PIL import Image
-import io
-import base64
 
 # Set up the Streamlit page configuration
 st.set_page_config(page_title="Illegal Parking Monitoring", page_icon="🚬", layout="wide")
@@ -34,7 +31,7 @@ def get_current_time():
     return (datetime.utcnow() + gmt_plus_7).strftime("%H:%M:%S")
 
 # Auto-refresh every 5 seconds
-st_autorefresh(interval=1000, key="auto_refresh")
+st_autorefresh(interval=5000, key="auto_refresh")
 
 # Display current time
 current_time = get_current_time()
@@ -45,7 +42,7 @@ clock_placeholder.subheader(f"Current Time: {current_time}")
 def load_data():
     try:
         # URL Google Sheets
-        url = "https://docs.google.com/spreadsheets/d/1LkUmM7tPEsKaWI31ycoGedzwSXFdq4f16Z4mqGBYwRU/edit?usp=sharing"
+        url = "https://docs.google.com/spreadsheets/d/1bcept49fnUiGc3s5ou_68MLuwhhzhNUNvNMANesQ1Zk/edit?usp=sharing"
         conn = st.connection("gsheets", type=GSheetsConnection)
         df = conn.read(spreadsheet=url, header=0)  # Ensure header is taken from the first row
 
@@ -83,21 +80,6 @@ if df.empty:
         "Detection": [1, 0, 1]
     })
 
-# Process the last row
-last_row = df.iloc[-1]
-last_time = last_row["Time"]
-last_detection = last_row["Detection"]
-
-# Live Detection Section
-st.subheader("🎥 Live Detection")
-st.markdown(
-    f"""
-    **Information**
-    - **Time Captured:** {last_time}
-    - **Detection Status:** {"**:blue[DETECTED]**" if last_detection == 1 else "**:green[NOT DETECTED]**"}
-    """
-)
-
 # Heatmap Section
 st.subheader("🔥 Heatmap: Waktu vs Jumlah Pelanggaran", divider="gray")
 
@@ -127,13 +109,28 @@ sns.heatmap(
     annot=True,
     fmt=".0f",
     cmap="YlGnBu",
-    cbar_kws={"label": "Key Count"},
+    cbar_kws={"label": "Jumlah Pelanggaran"},
     ax=ax
 )
-ax.set_title("Heatmap: Waktu vs Key Count")
+ax.set_title("Heatmap: Waktu vs Jumlah Pelanggaran")
 ax.set_xlabel("Jam (24-Hour Format)")
-ax.set_ylabel("Key Count")
+ax.set_ylabel("Jumlah Pelanggaran")
 st.pyplot(fig)
+
+# Process the last row
+last_row = df.iloc[-1]
+last_time = last_row["Time"]
+last_detection = last_row["Detection"]
+
+# Live Detection Section
+st.subheader("🎥 Live Detection")
+st.markdown(
+    f"""
+    **Information**
+    - **Time Captured:** {last_time}
+    - **Detection Status:** {"**:red[DETECTED]**" if last_detection == 1 else "**:green[NOT DETECTED]**"}
+    """
+)
 
 # Metrics
 total_images = len(df)
@@ -164,22 +161,12 @@ with col2:
     ax1.axis('equal')
     st.pyplot(fig1)
 
-# Filter hanya data valid di kolom Time
-df["Time"] = pd.to_datetime(df["Time"], format='%H:%M:%S', errors='coerce')
-df = df.dropna(subset=["Time"])  # Hapus data dengan Time NaT (tidak valid)
-
-# Hitung cumulative detection rate
-df["Cumulative Detection"] = df["Detection"].cumsum()
-df["Cumulative Detection Rate"] = (df["Cumulative Detection"] / (df.index + 1)) * 100
-
-# Validasi nilai kumulatif agar tetap dalam batas logis (0-100%)
-df["Cumulative Detection Rate"] = df["Cumulative Detection Rate"].clip(0, 100)
-
-# Plot cumulative detection rate
+# Cumulative Detection Rate Graph
 st.subheader("📈 Cumulative Detection Rate Over Time")
 fig2, ax2 = plt.subplots(figsize=(10, 5))
-time_series = df["Time"]
-ax2.plot(time_series, df["Cumulative Detection Rate"], label="Cumulative Detection Rate", color="green")
+time_series = pd.to_datetime(df["Time"], format="%H:%M:%S", errors="coerce")
+detection_cumsum = df["Detection"].cumsum() / (df.index + 1) * 100
+ax2.plot(time_series, detection_cumsum, label="Cumulative Detection Rate", color="blue")
 ax2.set_title("Cumulative Detection Rate Over Time")
 ax2.set_xlabel("Time")
 ax2.set_ylabel("Detection Rate (%)")
