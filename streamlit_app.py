@@ -87,7 +87,7 @@ if not df.empty:
         f"""
         **Information**
         - **Time Captured:** {last_time}
-        - **Detection Status:** {"**:red[DETECTED]**" if last_detection == 1 else "**:green[NOT DETECTED]**"}
+        - **Detection Status:** {"**:green[DETECTED]**" if last_detection == 1 else "**:red[NOT DETECTED]**"}
         """
     )
 
@@ -96,7 +96,8 @@ if not df.empty:
         try:
             image_data = base64.b64decode(last_image_url)
             image = Image.open(io.BytesIO(image_data))
-            st.image(image, use_column_width=True)
+            st.image(image, caption="Latest Detection Image", use_container_width=True)
+
         except Exception as e:
             st.error(f"Failed to decode or display image: {e}")
 
@@ -125,7 +126,8 @@ if not df.empty:
         fig1, ax1 = plt.subplots()
         labels = ['Detected', 'Not Detected']
         sizes = [total_detections, total_images - total_detections]
-        ax1.pie(sizes, labels=labels, autopct='%1.1f%%', startangle=90)
+        colors = ['#2ecc71', '#e74c3c']  # Hijau untuk Detected, Merah untuk Not Detected
+        ax1.pie(sizes, labels=labels, autopct='%1.1f%%', startangle=90, colors=colors)
         ax1.axis('equal')
         st.pyplot(fig1)
 
@@ -134,7 +136,7 @@ if not df.empty:
     fig2, ax2 = plt.subplots(figsize=(10, 5))
     df["Time"] = pd.to_datetime(df["Time"], format="%H:%M:%S", errors="coerce")
     detection_cumsum = df["Detection"].cumsum() / (df.index + 1) * 100
-    ax2.plot(df["Time"], detection_cumsum, label="Cumulative Detection Rate", color="blue")
+    ax2.plot(df["Time"], detection_cumsum, label="Cumulative Violation Rate", color="brown")
     ax2.set_title("Cumulative Violation Rate")
     ax2.set_xlabel("Time")
     ax2.set_ylabel("Detection Rate (%)")
@@ -173,6 +175,6 @@ while True:
     current_time = get_current_time()
     clock_placeholder.subheader(f"{current_time}")
     time.sleep(1)
-    if time.time() - start_time >= 10:
+    if time.time() - start_time >= 5:
         st.cache_data.clear()
         st.rerun()
