@@ -4,6 +4,7 @@ from datetime import datetime, timedelta
 import time
 from streamlit_gsheets import GSheetsConnection
 import matplotlib.pyplot as plt
+import base64
 import seaborn as sns
 from PIL import Image
 import requests
@@ -14,7 +15,7 @@ st.set_page_config(page_title="Illegal Parking Monitoring", page_icon="🚬", la
 
 # Title and description
 st.title("Illegal Parking Monitoring")
-st.subheader("📘 Capstone Project Group 24")
+st.subheader("📘 Capstone Project Group 26")
 st.write(
     """
     A real-time dashboard connecting to a Google Spreadsheet to monitor illegal parking activity. 
@@ -44,7 +45,7 @@ def convert_gdrive_link(url):
 @st.cache_data(ttl=5)
 def load_data():
     # Create a connection to Google Sheets
-    url = "https://docs.google.com/spreadsheets/d/1icVXJlg0MfkAwGMFN5mdiaDHP9IXvAUWXlJtluLJ4_o/edit?usp=sharing"
+    url = "https://docs.google.com/spreadsheets/d/1dOPKHvvlR2vubSLd_GPOtE1K8QrTM_YwdFs2nnEf4t8/edit?usp=sharing"
     conn = st.connection("gsheets", type=GSheetsConnection)
     df = conn.read(spreadsheet=url, header=0)
 
@@ -89,15 +90,14 @@ if not df.empty:
         """
     )
 
-    # Display the image if URL is available
-    if pd.notna(last_image_url):
-        st.subheader("🖼️ Latest Detection Image")
+    # Display the detected image
+    if last_image_url:
         try:
-            response = requests.get(last_image_url)
-            image = Image.open(BytesIO(response.content))
-            st.image(image, caption="Latest Detection Image", use_container_width=True)
+            image_data = base64.b64decode(last_image_url)
+            image = Image.open(io.BytesIO(image_data))
+            st.image(image, use_column_width=True)
         except Exception as e:
-            st.error(f"Error loading image: {e}")
+            st.error(f"Failed to decode or display image: {e}")
 
     # Metrics
     total_images = len(df)
@@ -106,13 +106,13 @@ if not df.empty:
     avg_detections_per_hour = total_detections / 24 if total_detections > 0 else 0
 
     # Display Metrics and Pie Chart
-    st.subheader("📊 Historical Metrics and Analysis")
+    st.subheader("📊 Historical Data Insights")
     col1, col2 = st.columns(2)
 
     with col1:
         st.markdown(
             f"""
-            **Historical Metrics**
+            **Historical Data Insights**
             - Total Captured Images: {total_images}
             - Total Detections: {total_detections}
             - Detection Rate: {detection_rate:.2f}%
@@ -128,6 +128,38 @@ if not df.empty:
         ax1.axis('equal')
         st.pyplot(fig1)
 
+    # Cumulative Cumulative Violation Rate Graph
+    st.subheader("📈 Cumulative Violation Rate")
+    fig2, ax2 = plt.subplots(figsize=(10, 5))
+    df["Time"] = pd.to_datetime(df["Time"], format="%H:%M:%S", errors="coerce")
+    detection_cumsum = df["Detection"].cumsum() / (df.index + 1) * 100
+    ax2.plot(df["Time"], detection_cumsum, label="Cumulative Detection Rate", color="blue")
+    ax2.set_title("Cumulative Violation Rate")
+    ax2.set_xlabel("Time")
+    ax2.set_ylabel("Detection Rate (%)")
+    ax2.legend()
+    ax2.grid(True)
+    st.pyplot(fig2)
+
+    # Heatmap Section
+    st.subheader("🔥 Heatmap: Time vs Key Count")
+    df["Hour"] = df["Time"].dt.hour
+    hourly_counts = df.groupby("Hour")["Detection"].sum().reset_index()
+    heatmap_data = pd.DataFrame({
+        "Hour": range(24),
+        "Detections": [
+            hourly_counts.loc[hourly_counts["Hour"] == h, "Detection"].sum()
+            if h in hourly_counts["Hour"].values else 0 for h in range(24)
+        ]
+    }).set_index("Hour")
+
+    fig3, ax3 = plt.subplots(figsize=(10, 5))
+    sns.heatmap(heatmap_data.T, annot=True, fmt=".0f", cmap="YlGnBu", cbar_kws={"label": "Detections"}, ax=ax3)
+    ax3.set_title("Heatmap: Time vs Key Count")
+    ax3.set_xlabel("Hours (24-Hour Format)")
+    ax3.set_ylabel("Key Count")
+    st.pyplot(fig3)
+
     # Display Historical Data Table
     st.subheader("📋 Historical Data Table")
     st.dataframe(df[["Date", "Time", "Detection", "Image_URL"]])
@@ -140,6 +172,6 @@ while True:
     current_time = get_current_time()
     clock_placeholder.subheader(f"{current_time}")
     time.sleep(1)
-    if time.time() - start_time >= 5:
+    if time.time() - start_time >= 10:
         st.cache_data.clear()
         st.rerun()
