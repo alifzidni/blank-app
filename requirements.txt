@@ -3,3 +3,4 @@ matplotlib
 st-gsheets-connection
 seaborn
 streamlit_autorefresh
+io
