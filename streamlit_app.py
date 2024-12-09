@@ -8,6 +8,7 @@ import base64
 import seaborn as sns
 from PIL import Image
 import requests
+import io
 from io import BytesIO
 
 # Set up the Streamlit page configuration
