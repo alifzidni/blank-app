@@ -46,7 +46,7 @@ def convert_gdrive_link(url):
 @st.cache_data(ttl=5)
 def load_data():
     # Create a connection to Google Sheets
-    url = "https://docs.google.com/spreadsheets/d/1dOPKHvvlR2vubSLd_GPOtE1K8QrTM_YwdFs2nnEf4t8/edit?usp=sharing"
+    url = "https://docs.google.com/spreadsheets/d/1bcept49fnUiGc3s5ou_68MLuwhhzhNUNvNMANesQ1Zk/edit?usp=sharing"
     conn = st.connection("gsheets", type=GSheetsConnection)
     df = conn.read(spreadsheet=url, header=0)
 
