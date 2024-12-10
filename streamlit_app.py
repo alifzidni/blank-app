@@ -46,7 +46,7 @@ def convert_gdrive_link(url):
 @st.cache_data(ttl=5)
 def load_data():
     # Create a connection to Google Sheets
-    url = "https://docs.google.com/spreadsheets/d/1dOPKHvvlR2vubSLd_GPOtE1K8QrTM_YwdFs2nnEf4t8/edit?usp=sharing"
+    url = "https://docs.google.com/spreadsheets/d/1RJJZTtAGtJcadKrtDNyN8ZdoQK88FV3IBqGJHWBqjHY/edit?usp=sharing"
     conn = st.connection("gsheets", type=GSheetsConnection)
     df = conn.read(spreadsheet=url, header=0)
 
@@ -94,12 +94,20 @@ if not df.empty:
     # Display the detected image
     if last_image_url:
         try:
-            image_data = base64.b64decode(last_image_url)
+            # Hapus prefix jika ada
+            if last_image_url.startswith("data:image"):
+                base64_data = last_image_url.split(",")[1]
+            else:
+                base64_data = last_image_url
+
+            # Decode Base64
+            image_data = base64.b64decode(base64_data)
             image = Image.open(io.BytesIO(image_data))
             st.image(image, caption="Latest Detection Image", use_container_width=True)
 
         except Exception as e:
             st.error(f"Failed to decode or display image: {e}")
+
 
     # Metrics
     total_images = len(df)
